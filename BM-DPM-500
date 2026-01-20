@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DPM-500 Digital Panel Meter Emulator</title>
+    <style>
+        body { background: #121212; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        #meter-body { width: 350px; background: #2c2c2c; border: 5px solid #1a1a1a; border-radius: 8px; padding: 25px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        #led-panel { background: #050505; border: 3px solid #111; height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; padding-right: 20px; margin-bottom: 25px; position: relative; }
+        #main-display { color: #ff1111; font-family: 'Courier New', monospace; font-size: 52px; text-shadow: 0 0 15px #ff0000; font-weight: 900; letter-spacing: 2px; }
+        #secondary-display { color: #cc0000; font-size: 14px; position: absolute; bottom: 5px; right: 20px; }
+        .controls { display: flex; justify-content: space-between; gap: 10px; }
+        button { flex: 1; height: 45px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; transition: 0.2s; }
+        button:hover { background: #555; border-color: #777; }
+        button:active { background: #222; transform: translateY(2px); }
+        #search-box { margin-top: 40px; width: 400px; }
+        input { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; color: #00ff00; border-radius: 5px; font-family: monospace; }
+        #step-guide { margin-top: 15px; padding: 15px; background: #1e1e1e; border-left: 4px solid #00ff00; font-size: 14px; line-height: 1.6; min-height: 50px; }
+    </style>
+</head>
+<body>
+
+    <div id="meter-body">
+        <div id="led-panel">
+            <div id="main-display" id="display">12.000</div>
+            <div id="secondary-display">UNITS</div>
+        </div>
+        <div class="controls">
+            <button onmousedown="startMenuHold()" onmouseup="endMenuHold()">MENU</button>
+            <button onclick="handleBtn('RIGHT')">F1 / ⮕</button>
+            <button onclick="handleBtn('UP')">F2 / ⬆</button>
+            <button onclick="handleBtn('ENTER')">F3 / ↵</button>
+        </div>
+    </div>
+
+    <div id="search-box">
+        <input type="text" id="query" placeholder="Ask: 'How do I change the input type?'" oninput="askAI()">
+        <div id="step-guide">Waiting for your question...</div>
+    </div>
+
+<script>
+    // Meter Menu Map from Manual 
+    const mainMenu = ["SETUP", "RESET", "CONTRL", "PASS"];
+    const setupSub = ["INPUT", "D-SCAL", "UNITS", "DEC PT", "PROG", "DSPLAY", "RELAY", "AOUT"];
+    const advMenu = ["FILTER", "BYPASS", "ROUND", "SERIAL", "SELECT", "DIAG"];
+    
+    let state = { mode: "RUN", menuIdx: 0, subIdx: -1, isAdv: false };
+    let menuTimer;
+
+    function handleBtn(btn) {
+        if (state.mode === "RUN") {
+            if (btn === "MENU") { state.mode = "MAIN"; state.menuIdx = 0; }
+        } else if (state.mode === "MAIN") {
+            if (btn === "UP") state.menuIdx = (state.menuIdx + 1) % mainMenu.length;
+            if (btn === "ENTER") { state.mode = "SUB"; state.subIdx = 0; }
+            if (btn === "MENU") state.mode = "RUN";
+        } else if (state.mode === "SUB") {
+            if (btn === "MENU") state.mode = "MAIN";
+            if (btn === "UP") state.subIdx++; // Simplified for demo
+        }
+        updateUI();
+    }
+
+    function startMenuHold() {
+        menuTimer = setTimeout(() => {
+            state.mode = "ADVANCED";
+            state.menuIdx = 0;
+            state.isAdv = true;
+            updateUI();
+        }, 3000); // 3-second hold for Advanced Menu [cite: 21, 321]
+    }
+
+    function endMenuHold() {
+        clearTimeout(menuTimer);
+        if (!state.isAdv) handleBtn('MENU');
+        state.isAdv = false;
+    }
+
+    function updateUI() {
+        const d = document.getElementById("main-display");
+        if (state.mode === "RUN") d.innerText = "12.000";
+        else if (state.mode === "MAIN") d.innerText = mainMenu[state.menuIdx];
+        else if (state.mode === "ADVANCED") d.innerText = advMenu[state.menuIdx];
+        else if (state.mode === "SUB") d.innerText = setupSub[state.subIdx % setupSub.length];
+    }
+
+    function askAI() {
+        const q = document.getElementById("query").value.toLowerCase();
+        const guide = document.getElementById("step-guide");
+        if (q.includes("input")) guide.innerHTML = "<b>1.</b> Press MENU<br><b>2.</b> Press ENTER on 'SETUP'<br><b>3.</b> Press ENTER on 'INPUT'<br><b>4.</b> Use UP to select mA or Volts.";
+        else if (q.includes("advanced")) guide.innerHTML = "<b>1.</b> Hold MENU for 3 seconds.<br><b>2.</b> Use UP to find 'FILTER' or 'SERIAL'.";
+        else if (q.includes("reset")) guide.innerHTML = "<b>1.</b> Press MENU.<br><b>2.</b> Press UP to 'RESET'.<br><b>3.</b> Press ENTER.";
+    }
+</script>
+</body>
+</html>
